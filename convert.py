@@ -1,6 +1,7 @@
 import os
 import xmltodict
 import csv
+import json
 
 
 class FileSet:
@@ -16,8 +17,10 @@ class FileSet:
         for i in os.walk(path):
             return [file for file in i[2] if file.endswith(".xml")]
 
-    def build_csv(self, metadata):
-        headings = ["title", "abstract"]
+    @staticmethod
+    def build_csv(metadata):
+        headings = ["title", "abstract", "author1_fname", "author1_mname", "author1_lname", "author1_suffix",
+                    "author1_institution"]
         with open("final_csv.csv", "w") as trace_csv:
             dict_writer = csv.writer(trace_csv, delimiter="|")
             dict_writer.writerow(headings)
@@ -42,16 +45,46 @@ class Record:
         row = []
         row.append(self.find_title())
         row.append(self.find_abstract())
+        given = self.find_author("given")
+        if len(given) == 1:
+            row.append(given[0])
+            row.append("")
+        else:
+            row.append(given[0])
+            row.append(given[1])
+        row.append(self.find_author("family")[0])
+        row.append(self.find_author("termsOfAddress")[0])
+        row.append(self.find_author_institution())
         return row
 
     def find_title(self):
         return self.metadata["mods:mods"]["mods:titleInfo"]["mods:title"]
 
     def find_abstract(self):
-        return self.metadata["mods:mods"]["mods:abstract"]
+        if self.metadata["mods:mods"]["mods:abstract"]:
+            return self.replace_returns(self.metadata["mods:mods"]["mods:abstract"])
+        else:
+            return ''
 
-    def replace_returns(self):
-        x = 0
+    @staticmethod
+    def replace_returns(x):
+        return "".join(x.splitlines())
+
+    def find_author(self, my_part):
+        default = ""
+        for names in json.loads(json.dumps(self.metadata["mods:mods"]["mods:name"])):
+            for k, v in names.items():
+                if k == "mods:namePart":
+                    for part in v:
+                        if part["@type"] == my_part:
+                            try:
+                                default = part["#text"]
+                            except KeyError:
+                                default = ""
+        return default.split(" ")
+
+    def find_author_institution(self):
+        return self.metadata["mods:mods"]["mods:extension"]["etd:degree"]["etd:grantor"]
 
 
 if __name__ == "__main__":
