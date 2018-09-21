@@ -19,8 +19,8 @@ class FileSet:
 
     @staticmethod
     def build_csv(metadata):
-        headings = ["title", "abstract", "author1_fname", "author1_mname", "author1_lname", "author1_suffix",
-                    "author1_institution"]
+        headings = ["title", "keywords", "abstract", "author1_fname", "author1_mname", "author1_lname", "author1_suffix",
+                    "author1_institution", "disciplines", "comments", "degree_name", "publication_date"]
         with open("final_csv.csv", "w") as trace_csv:
             dict_writer = csv.writer(trace_csv, delimiter="|")
             dict_writer.writerow(headings)
@@ -44,6 +44,7 @@ class Record:
     def prep_csv(self):
         row = []
         row.append(self.find_title())
+        row.append(self.review_notes("Keywords Submitted by Author"))
         row.append(self.find_abstract())
         given = self.find_author("given")
         if len(given) == 1:
@@ -55,6 +56,10 @@ class Record:
         row.append(self.find_author("family")[0])
         row.append(self.find_author("termsOfAddress")[0])
         row.append(self.find_author_institution())
+        row.append(self.find_discipline())
+        row.append(self.review_notes("Submitted Comment"))
+        row.append(self.find_degree())
+        row.append(self.find_publication_date())
         return row
 
     def find_title(self):
@@ -85,6 +90,24 @@ class Record:
 
     def find_author_institution(self):
         return self.metadata["mods:mods"]["mods:extension"]["etd:degree"]["etd:grantor"]
+
+    def find_discipline(self):
+        return self.metadata["mods:mods"]["mods:extension"]["etd:degree"]["etd:discipline"]
+
+    def review_notes(self, display_label, default=""):
+        for note in self.metadata["mods:mods"]["mods:note"]:
+            if note["@displayLabel"] == display_label:
+                try:
+                    default = note["#text"]
+                except KeyError:
+                    pass
+        return default
+
+    def find_degree(self):
+        return self.metadata["mods:mods"]["mods:extension"]["etd:degree"]["etd:name"]
+
+    def find_publication_date(self):
+        return json.loads(json.dumps(self.metadata["mods:mods"]["mods:originInfo"]["mods:dateIssued"]["#text"]))
 
 
 if __name__ == "__main__":
