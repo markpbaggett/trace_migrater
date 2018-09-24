@@ -20,8 +20,8 @@ class FileSet:
     @staticmethod
     def build_csv(metadata):
         headings = ["title", "fulltext_url", "keywords", "abstract", "author1_fname", "author1_mname", "author1_lname",
-                    "author1_suffix", "author1_institution", "advisor1", "advisor2", "disciplines", "comments",
-                    "degree_name", "document_type", "publication_date"]
+                    "author1_suffix", "author1_institution", "author1_orcid", "advisor1", "advisor2", "disciplines",
+                    "comments", "degree_name", "document_type", "publication_date"]
         with open("final_csv.csv", "w") as trace_csv:
             dict_writer = csv.writer(trace_csv, delimiter="|")
             dict_writer.writerow(headings)
@@ -53,16 +53,13 @@ class Record:
         row.append(self.url_path)
         row.append(self.review_notes("Keywords Submitted by Author"))
         row.append(self.find_abstract())
-        given = self.find_author("given")
-        if len(given) == 1:
-            row.append(given[0])
-            row.append("")
-        else:
-            row.append(given[0])
-            row.append(given[1])
-        row.append(self.find_author("family")[0])
-        row.append(self.find_author("termsOfAddress")[0])
+        our_author = self.find_author_by_role()
+        row.append(our_author["name"]["first"])
+        row.append(our_author["name"]["middle"])
+        row.append(our_author["name"]["last"])
+        row.append(our_author["name"]["suffix"])
         row.append(self.find_author_institution())
+        row.append(our_author["orcid"])
         thesis_advisor = self.find_advisors("Thesis advisor")
         if type(thesis_advisor) is list:
             row.append(", ".join(str(x) for x in thesis_advisor))
@@ -78,6 +75,7 @@ class Record:
         row.append(self.find_degree())
         row.append(self.is_thesis_or_dissertation())
         row.append(self.find_publication_date())
+        self.find_author_by_role()
         return row
 
     def find_title(self):
@@ -92,19 +90,6 @@ class Record:
     @staticmethod
     def replace_returns(x):
         return "".join(x.splitlines())
-
-    def find_author(self, my_part):
-        default = ""
-        for names in json.loads(json.dumps(self.metadata["mods:mods"]["mods:name"])):
-            for k, v in names.items():
-                if k == "mods:namePart":
-                    for part in v:
-                        if part["@type"] == my_part:
-                            try:
-                                default = part["#text"]
-                            except KeyError:
-                                default = ""
-        return default.split(" ")
 
     def find_author_institution(self):
         return self.metadata["mods:mods"]["mods:extension"]["etd:degree"]["etd:grantor"]
@@ -155,6 +140,44 @@ class Record:
                 except KeyError:
                     full_name.update(suffix="")
         return f"{full_name['first']} {full_name['last']} {full_name['suffix']}"
+
+    def find_author_by_role(self, role="Author"):
+        author = {"name": "", "orcid": ""}
+        for names in json.loads(json.dumps(self.metadata["mods:mods"]["mods:name"])):
+            for k, v in names.items():
+                if k == "mods:role":
+                    try:
+                        if v["mods:roleTerm"]["#text"] == role:
+                            author.update(name=self.handle_author_parts(names["mods:namePart"]))
+                            author.update(orcid=self.find_orcid(names))
+                    except KeyError:
+                        print(self.url_path)
+        return author
+
+    @staticmethod
+    def handle_author_parts(parts):
+        full_name = {"suffix": "", "middle": ""}
+        for part in parts:
+            if part["@type"] == "given":
+                split_given = part["#text"].split()
+                full_name.update(first=split_given[0])
+                if len(split_given) > 1:
+                    full_name.update(middle=split_given[1])
+            elif part["@type"] == "family":
+                full_name.update(last=part["#text"])
+            elif part["@type"] == "termsOfAddress":
+                try:
+                    full_name.update(suffix=part["#text"])
+                except KeyError:
+                    full_name.update(suffix="")
+        return full_name
+
+    @staticmethod
+    def find_orcid(node):
+        try:
+            return node["@valueURI"]
+        except KeyError:
+            return ""
 
     def is_thesis_or_dissertation(self):
         if self.metadata["mods:mods"]["mods:extension"]["etd:degree"]["etd:level"] == 'Doctoral (includes ' \
