@@ -10,7 +10,7 @@ class FileSet:
         self.files = self.build_set(path)
 
     def __repr__(self):
-        return
+        return f"A Fileset based on {self.path}."
 
     @staticmethod
     def build_set(path):
@@ -19,8 +19,9 @@ class FileSet:
 
     @staticmethod
     def build_csv(metadata):
-        headings = ["title", "keywords", "abstract", "author1_fname", "author1_mname", "author1_lname", "author1_suffix",
-                    "author1_institution", "disciplines", "comments", "degree_name", "publication_date"]
+        headings = ["title", "fulltext_url", "keywords", "abstract", "author1_fname", "author1_mname", "author1_lname",
+                    "author1_suffix", "author1_institution", "disciplines", "comments", "degree_name", "document_type",
+                    "publication_date", "advisor2"]
         with open("final_csv.csv", "w") as trace_csv:
             dict_writer = csv.writer(trace_csv, delimiter="|")
             dict_writer.writerow(headings)
@@ -34,6 +35,7 @@ class FileSet:
 class Record:
     def __init__(self, record, path):
         self.metadata = self.read_metadata(record, path)
+        self.url_path = self.set_url_path(record)
 
     @staticmethod
     def read_metadata(record, path):
@@ -41,9 +43,14 @@ class Record:
             x = my_file.read()
             return xmltodict.parse(x)
 
+    @staticmethod
+    def set_url_path(file):
+        return f"https://trace.utk.edu/islandora/object/{file.replace('.xml', '/datastream/PDF').replace('_',':')}"
+
     def prep_csv(self):
         row = []
         row.append(self.find_title())
+        row.append(self.url_path)
         row.append(self.review_notes("Keywords Submitted by Author"))
         row.append(self.find_abstract())
         given = self.find_author("given")
@@ -59,7 +66,18 @@ class Record:
         row.append(self.find_discipline())
         row.append(self.review_notes("Submitted Comment"))
         row.append(self.find_degree())
+        row.append(self.is_thesis_or_dissertation())
         row.append(self.find_publication_date())
+        # thesis_advisor = self.find_advisors("Thesis advisor")
+        # if type(thesis_advisor) is list:
+        #     row.append(", ".join(str(x) for x in thesis_advisor))
+        # else:
+        #     row.append("BAD DATA.  Check file!")
+        advisors = self.find_advisors("Committee member")
+        if type(advisors) is list:
+            row.append(", ".join(str(x) for x in advisors))
+        else:
+            row.append("BAD DATA.  Check file!")
         return row
 
     def find_title(self):
@@ -108,6 +126,46 @@ class Record:
 
     def find_publication_date(self):
         return json.loads(json.dumps(self.metadata["mods:mods"]["mods:originInfo"]["mods:dateIssued"]["#text"]))
+
+    def find_advisors(self, role):
+        matches = []
+        for names in json.loads(json.dumps(self.metadata["mods:mods"]["mods:name"])):
+            for k, v in names.items():
+                if k == "mods:role":
+                    try:
+                        if v["mods:roleTerm"]["#text"] == role:
+                            x = self.split_name_parts(names["mods:namePart"]).rstrip()
+                            matches.append(x)
+                    except KeyError:
+                        print(self.url_path)
+                        return(f"{self.url_path} has bad metadata and can't find advisors.'")
+        return matches
+
+    @staticmethod
+    def split_name_parts(parts):
+        full_name = {}
+        for part in parts:
+            if part["@type"] == "given":
+                full_name.update(first=part["#text"])
+            elif part["@type"] == "family":
+                full_name.update(last=part["#text"])
+            elif part["@type"] == "termsOfAddress":
+                try:
+                    full_name.update(suffix=part["#text"])
+                except KeyError:
+                    full_name.update(suffix="")
+        return f"{full_name['first']} {full_name['last']} {full_name['suffix']}"
+
+    @staticmethod
+    def find_uri(text):
+        print("Test")
+
+    def is_thesis_or_dissertation(self):
+        if self.metadata["mods:mods"]["mods:extension"]["etd:degree"]["etd:level"] == 'Doctoral (includes ' \
+                                                                                      'post-doctoral)':
+            return "dissertation"
+        else:
+            return "thesis"
 
 
 if __name__ == "__main__":
