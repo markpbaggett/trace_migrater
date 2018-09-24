@@ -2,6 +2,7 @@ import os
 import xmltodict
 import csv
 import json
+import yaml
 
 
 class FileSet:
@@ -48,18 +49,11 @@ class Record:
         return f"https://trace.utk.edu/islandora/object/{file.replace('.xml', '/datastream/PDF').replace('_',':')}"
 
     def prep_csv(self):
-        row = []
-        row.append(self.find_title())
-        row.append(self.url_path)
-        row.append(self.review_notes("Keywords Submitted by Author"))
-        row.append(self.find_abstract())
         our_author = self.find_author_by_role()
-        row.append(our_author["name"]["first"])
-        row.append(our_author["name"]["middle"])
-        row.append(our_author["name"]["last"])
-        row.append(our_author["name"]["suffix"])
-        row.append(self.find_author_institution())
-        row.append(our_author["orcid"])
+        row = [self.find_title(), self.url_path, self.review_notes("Keywords Submitted by Author"),
+               self.find_abstract(), our_author["name"]["first"], our_author["name"]["middle"],
+               our_author["name"]["last"], our_author["name"]["suffix"], self.find_author_institution(),
+               our_author["orcid"]]
         thesis_advisor = self.find_advisors("Thesis advisor")
         if type(thesis_advisor) is list:
             row.append(", ".join(str(x) for x in thesis_advisor))
@@ -188,5 +182,6 @@ class Record:
 
 
 if __name__ == "__main__":
-    test = FileSet("/home/mark/metadata/utk_ir_td_fall_18/output")
+    settings = yaml.load(open("config/config.yml", "r"))
+    test = FileSet(settings["path"])
     test.process_records()
