@@ -3,6 +3,7 @@ import xmltodict
 import csv
 import json
 import yaml
+from app.email_handler import Person
 
 
 class FileSet:
@@ -21,8 +22,8 @@ class FileSet:
     @staticmethod
     def build_csv(metadata):
         headings = ["title", "fulltext_url", "keywords", "abstract", "author1_fname", "author1_mname", "author1_lname",
-                    "author1_suffix", "author1_institution", "author1_orcid", "advisor1", "advisor2", "disciplines",
-                    "comments", "degree_name", "document_type", "publication_date"]
+                    "author1_suffix", "author1_email", "author1_institution", "author1_orcid", "advisor1", "advisor2",
+                    "disciplines", "comments", "degree_name", "document_type", "publication_date"]
         with open("final_csv.csv", "w") as trace_csv:
             dict_writer = csv.writer(trace_csv, delimiter="|")
             dict_writer.writerow(headings)
@@ -52,7 +53,9 @@ class Record:
         our_author = self.find_author_by_role()
         row = [self.find_title(), self.url_path, self.review_notes("Keywords Submitted by Author"),
                self.find_abstract(), our_author["name"]["first"], our_author["name"]["middle"],
-               our_author["name"]["last"], our_author["name"]["suffix"], self.find_author_institution(),
+               our_author["name"]["last"], our_author["name"]["suffix"],
+               Person(our_author["name"]["first"], our_author["name"]["last"]).check_utk_email(),
+               self.find_author_institution(),
                our_author["orcid"]]
         thesis_advisor = self.find_advisors("Thesis advisor")
         if type(thesis_advisor) is list:
