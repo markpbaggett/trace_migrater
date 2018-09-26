@@ -4,10 +4,11 @@ import csv
 import json
 import yaml
 from app.email_handler import Person
+from typing import Dict, Any
 
 
 class FileSet:
-    def __init__(self, path):
+    def __init__(self, path: str):
         self.path = path
         self.files = self.build_set(path)
 
@@ -15,12 +16,12 @@ class FileSet:
         return f"A Fileset based on {self.path}."
 
     @staticmethod
-    def build_set(path):
+    def build_set(path: str) -> list:
         for i in os.walk(path):
             return [file for file in i[2] if file.endswith(".xml")]
 
     @staticmethod
-    def build_csv(metadata):
+    def build_csv(metadata: list):
         headings = ["title", "fulltext_url", "keywords", "abstract", "author1_fname", "author1_mname", "author1_lname",
                     "author1_suffix", "author1_email", "author1_institution", "author1_orcid", "advisor1", "advisor2",
                     "disciplines", "comments", "degree_name", "document_type", "publication_date"]
@@ -35,21 +36,21 @@ class FileSet:
 
 
 class Record:
-    def __init__(self, record, path):
-        self.metadata = self.read_metadata(record, path)
-        self.url_path = self.set_url_path(record)
+    def __init__(self, our_record: str, our_path: str):
+        self.metadata = self.read_metadata(our_record, our_path)
+        self.url_path = self.set_url_path(our_record)
 
     @staticmethod
-    def read_metadata(record, path):
+    def read_metadata(record: str, path: str) -> Dict[str, Any]:
         with open(f"{path}/{record}", 'r') as my_file:
             x = my_file.read()
             return xmltodict.parse(x)
 
     @staticmethod
-    def set_url_path(file):
+    def set_url_path(file: str) -> str:
         return f"https://trace.utk.edu/islandora/object/{file.replace('.xml', '/datastream/PDF').replace('_',':')}"
 
-    def prep_csv(self):
+    def prep_csv(self) -> list:
         our_author = self.find_author_by_role()
         row = [self.find_title(), self.url_path, self.review_notes("Keywords Submitted by Author"),
                self.find_abstract(), our_author["name"]["first"], our_author["name"]["middle"],
@@ -75,26 +76,26 @@ class Record:
         self.find_author_by_role()
         return row
 
-    def find_title(self):
+    def find_title(self) -> str:
         return self.metadata["mods:mods"]["mods:titleInfo"]["mods:title"]
 
-    def find_abstract(self):
+    def find_abstract(self) -> str:
         if self.metadata["mods:mods"]["mods:abstract"]:
             return self.replace_returns(self.metadata["mods:mods"]["mods:abstract"])
         else:
             return ''
 
     @staticmethod
-    def replace_returns(x):
+    def replace_returns(x: str) -> str:
         return "".join(x.splitlines())
 
-    def find_author_institution(self):
+    def find_author_institution(self) -> str:
         return self.metadata["mods:mods"]["mods:extension"]["etd:degree"]["etd:grantor"]
 
-    def find_discipline(self):
+    def find_discipline(self) -> str:
         return self.metadata["mods:mods"]["mods:extension"]["etd:degree"]["etd:discipline"]
 
-    def review_notes(self, display_label, default=""):
+    def review_notes(self, display_label: str, default: str="") -> str:
         for note in self.metadata["mods:mods"]["mods:note"]:
             if note["@displayLabel"] == display_label:
                 try:
@@ -103,13 +104,13 @@ class Record:
                     pass
         return default
 
-    def find_degree(self):
+    def find_degree(self) -> str:
         return self.metadata["mods:mods"]["mods:extension"]["etd:degree"]["etd:name"]
 
-    def find_publication_date(self):
+    def find_publication_date(self) -> str:
         return json.loads(json.dumps(self.metadata["mods:mods"]["mods:originInfo"]["mods:dateIssued"]["#text"]))
 
-    def find_advisors(self, role):
+    def find_advisors(self, role: str) -> Any:
         matches = []
         for names in json.loads(json.dumps(self.metadata["mods:mods"]["mods:name"])):
             for k, v in names.items():
@@ -138,7 +139,7 @@ class Record:
                     full_name.update(suffix="")
         return f"{full_name['first']} {full_name['last']} {full_name['suffix']}"
 
-    def find_author_by_role(self, role="Author"):
+    def find_author_by_role(self, role: str="Author") -> dict:
         author = {"name": "", "orcid": ""}
         for names in json.loads(json.dumps(self.metadata["mods:mods"]["mods:name"])):
             for k, v in names.items():
@@ -152,7 +153,7 @@ class Record:
         return author
 
     @staticmethod
-    def handle_author_parts(parts):
+    def handle_author_parts(parts: list) -> dict:
         full_name = {"suffix": "", "middle": ""}
         for part in parts:
             if part["@type"] == "given":
@@ -170,13 +171,13 @@ class Record:
         return full_name
 
     @staticmethod
-    def find_orcid(node):
+    def find_orcid(node) -> str:
         try:
             return node["@valueURI"]
         except KeyError:
             return ""
 
-    def is_thesis_or_dissertation(self):
+    def is_thesis_or_dissertation(self) -> str:
         if self.metadata["mods:mods"]["mods:extension"]["etd:degree"]["etd:level"] == 'Doctoral (includes ' \
                                                                                       'post-doctoral)':
             return "dissertation"
