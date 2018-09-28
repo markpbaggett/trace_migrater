@@ -5,12 +5,15 @@ import json
 import yaml
 from app.email_handler import Person
 from typing import Dict, Any
+from app.embargo_handler import EmbargoedFiles
 
 
 class FileSet:
-    def __init__(self, path: str):
+    def __init__(self, path: str, embargoed_files=None, date_of_award: str="2017-12"):
         self.path = path
         self.files = self.build_set(path)
+        self.embargos = embargoed_files
+        self.date_of_award = date_of_award
 
     def __repr__(self):
         return f"A Fileset based on {self.path}."
@@ -20,27 +23,39 @@ class FileSet:
         for i in os.walk(path):
             return [file for file in i[2] if file.endswith(".xml")]
 
-    @staticmethod
-    def build_csv(metadata: list):
+    def build_csv(self, metadata: list):
         headings = ["title", "fulltext_url", "keywords", "abstract", "author1_fname", "author1_mname", "author1_lname",
                     "author1_suffix", "author1_email", "author1_institution", "author1_orcid", "advisor1", "advisor2",
-                    "disciplines", "comments", "degree_name", "document_type", "publication_date"]
+                    "disciplines", "comments", "degree_name", "document_type", "publication_date", "embargo_until",
+                    "files_embargoed"]
         with open("theses.csv", "w") as theses_csv:
             dict_writer = csv.writer(theses_csv, delimiter="|")
             dict_writer.writerow(headings)
             for record in metadata:
-                if record[16] == "thesis":
+                if record[16] == "thesis" and record[17] == self.date_of_award:
+                    if self.embargos is not None:
+                        record = self.find_relevant_embargo(record)
                     dict_writer.writerow(record)
         with open("dissertations.csv", "w") as dissertations_csv:
             dict_writer = csv.writer(dissertations_csv, delimiter="|")
             dict_writer.writerow(headings)
             for record in metadata:
-                if record[16] == "dissertation":
+                if record[16] == "dissertation" and record[17] == self.date_of_award:
+                    if self.embargos is not None:
+                        record = self.find_relevant_embargo(record)
                     dict_writer.writerow(record)
 
     def process_records(self):
         return self.build_csv([Record(record, self.path).prep_csv() for record in self.files])
 
+    def find_relevant_embargo(self, my_row: list):
+        my_file = f'{my_row[1].replace("https://trace.utk.edu/islandora/object/", "").replace("/datastream/PDF", "")}' \
+                  f'.xml'
+        for i in self.embargos:
+            if my_file == i["filename"]:
+               my_row.append(i["embargo-until"])
+               my_row.append(i["datastreams"])
+        return my_row
 
 class Record:
     def __init__(self, our_record: str, our_path: str):
@@ -194,5 +209,9 @@ class Record:
 
 if __name__ == "__main__":
     settings = yaml.load(open("config/config.yml", "r"))
-    test = FileSet(settings["path"])
+    # test = FileSet(settings["path"])
+    # test.process_records()
+    embargos = EmbargoedFiles("/home/mark/PycharmProjects/trace_unpublished/rels-int/")
+    embargos.build_mods()
+    test = FileSet("test_mods", embargos.embargoed_files)
     test.process_records()
