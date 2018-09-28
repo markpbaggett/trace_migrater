@@ -25,11 +25,18 @@ class FileSet:
         headings = ["title", "fulltext_url", "keywords", "abstract", "author1_fname", "author1_mname", "author1_lname",
                     "author1_suffix", "author1_email", "author1_institution", "author1_orcid", "advisor1", "advisor2",
                     "disciplines", "comments", "degree_name", "document_type", "publication_date"]
-        with open("final_csv.csv", "w") as trace_csv:
-            dict_writer = csv.writer(trace_csv, delimiter="|")
+        with open("theses.csv", "w") as theses_csv:
+            dict_writer = csv.writer(theses_csv, delimiter="|")
             dict_writer.writerow(headings)
             for record in metadata:
-                dict_writer.writerow(record)
+                if record[16] == "thesis":
+                    dict_writer.writerow(record)
+        with open("dissertations.csv", "w") as dissertations_csv:
+            dict_writer = csv.writer(dissertations_csv, delimiter="|")
+            dict_writer.writerow(headings)
+            for record in metadata:
+                if record[16] == "dissertation":
+                    dict_writer.writerow(record)
 
     def process_records(self):
         return self.build_csv([Record(record, self.path).prep_csv() for record in self.files])
