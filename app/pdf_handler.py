@@ -5,7 +5,6 @@ class PdfManipulator:
     def __init__(self, filename, output_directory="output_pdfs"):
         self.filename = filename
         self.contents = PdfFileReader(filename, "rb")
-        self.output_file_name = ""
         self.output_pdf = PdfFileWriter()
         self.output_directory = output_directory
 
