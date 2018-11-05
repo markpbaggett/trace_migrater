@@ -31,6 +31,7 @@ class PdfManipulator:
     def write_output_to_disk(self):
         with open(f"output_pdfs/{self.filename.split('/')[-1]}", "wb") as my_pdf:
             self.output_pdf.write(my_pdf)
+        return
 
     def process_pdf(self):
         if self.has_a_cover_page() is True:
