@@ -1,4 +1,5 @@
 from PyPDF2 import PdfFileWriter, PdfFileReader
+import requests
 
 
 class PdfManipulator:
@@ -30,6 +31,7 @@ class PdfManipulator:
 
     def write_output_to_disk(self):
         with open(f"{self.output_directory}/{self.filename.split('/')[-1]}", "wb") as my_pdf:
+            # print(f"Writing {self.filename.split('/', [-1])} to {self.output_directory}.\n")
             self.output_pdf.write(my_pdf)
         return
 
@@ -44,5 +46,6 @@ class PdfManipulator:
 
 if __name__ == "__main__":
     pdf_name = "PDF.pdf"
-    x = PdfManipulator(f"/home/mark/PycharmProjects/islandora_to_digital_commons/test_files/{pdf_name}")
+    #x = PdfManipulator(f"/home/mark/PycharmProjects/islandora_to_digital_commons/test_files/{pdf_name}")
+    x = requests.get(("https://trace.utk.edu/islandora/object/utk.ir.td:733/datastream/PDF")).content
     x.process_pdf()

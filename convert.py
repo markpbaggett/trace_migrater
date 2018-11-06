@@ -6,6 +6,9 @@ import yaml
 from app.email_handler import Person
 from typing import Dict, Any
 from app.embargo_handler import EmbargoedFiles
+import requests
+import tqdm
+from app.pdf_handler import PdfManipulator
 
 
 class FileSet:
@@ -28,7 +31,7 @@ class FileSet:
                     "author1_suffix", "author1_email", "author1_institution", "author1_orcid", "advisor1", "advisor2",
                     "disciplines", "comments", "degree_name", "document_type", "publication_date", "embargo_until",
                     "files_embargoed"]
-        with open("theses.csv", "w") as theses_csv:
+        with open("theses.csv", "w", encoding="utf-8") as theses_csv:
             dict_writer = csv.writer(theses_csv, delimiter="|")
             dict_writer.writerow(headings)
             for record in metadata:
@@ -53,9 +56,11 @@ class FileSet:
                   f'.xml'
         for i in self.embargos:
             if my_file == i["filename"]:
-               my_row.append(i["embargo-until"])
-               my_row.append(i["datastreams"])
+                print(i)
+                my_row.append(i["embargo-until"])
+                my_row.append(i["datastreams"])
         return my_row
+
 
 class Record:
     def __init__(self, our_record: str, our_path: str):
@@ -64,13 +69,26 @@ class Record:
 
     @staticmethod
     def read_metadata(record: str, path: str) -> Dict[str, Any]:
-        with open(f"{path}/{record}", 'r') as my_file:
+        with open(f"{path}/{record}", 'r', encoding="utf-8") as my_file:
             x = my_file.read()
             return xmltodict.parse(x)
 
     @staticmethod
     def set_url_path(file: str) -> str:
-        return f"https://trace.utk.edu/islandora/object/{file.replace('.xml', '/datastream/PDF').replace('_',':')}"
+        r = requests.get(f"https://trace.utk.edu/islandora/object/{file.replace('.xml', '/datastream/PDF').replace('_',':')}")
+        if r.status_code == 200:
+            print(f"Processing {file}.\n")
+            download_pdf = requests.get(f"https://trace.utk.edu/islandora/object/"
+                                        f"{file.replace('.xml', '/datastream/PDF').replace('_',':')}")
+            with open(f"{settings['processing_directory']}/{file.replace('.xml', '.pdf').replace('_', ':')}", 'wb') as other:
+                other.write(download_pdf.content)
+            PdfManipulator(f"{settings['processing_directory']}/{file.replace('.xml', '.pdf').replace('_', ':')}",
+                           settings['for_dlshare']).process_pdf()
+            return f"https://trace.utk.edu/islandora/object/{file.replace('.xml', '/datastream/PDF').replace('_',':')}"
+        else:
+            print(f"Failing on {file}.\n")
+            return f"EMBARGOED OR DELETED: https://trace.utk.edu/islandora/object/" \
+                   f"{file.replace('.xml', '/datastream/PDF').replace('_',':')}"
 
     def prep_csv(self) -> list:
         our_author = self.find_author_by_role()
@@ -95,10 +113,10 @@ class Record:
         row.append(self.find_degree())
         row.append(self.is_thesis_or_dissertation())
         row.append(self.find_publication_date())
-        self.find_author_by_role()
         return row
 
     def find_title(self) -> str:
+        # print(self.metadata["mods:mods"]["mods:titleInfo"]["mods:title"])
         return self.metadata["mods:mods"]["mods:titleInfo"]["mods:title"]
 
     def find_abstract(self) -> str:
@@ -207,11 +225,35 @@ class Record:
             return "thesis"
 
 
+class ProcessRequest:
+    def __init__(self, type="not_embargoed"):
+        self.type = type
+
+    def handle(self):
+        if self.type == "not_embargoed":
+            settings = yaml.load(open("config/config.yml", "r"))
+            test = FileSet(settings["path"])
+            test.process_records()
+        elif self.type == "datastream":
+            embargos = EmbargoedFiles("/home/mark/PycharmProjects/trace_unpublished/rels-int/", "datastream")
+            embargos.build_mods()
+            test = FileSet("test_mods", embargos.embargoed_files)
+            print(test.embargos)
+            test.process_records()
+        elif self.type == "":
+            embargos = EmbargoedFiles("/home/mark/PycharmProjects/trace_unpublished/rels-int/", "object")
+            embargos.build_mods()
+            test = FileSet("test_mods", embargos.embargoed_files)
+            print(test.embargos)
+            test.process_records()
+
+
 if __name__ == "__main__":
     settings = yaml.load(open("config/config.yml", "r"))
-    # test = FileSet(settings["path"])
-    # test.process_records()
-    embargos = EmbargoedFiles("/home/mark/PycharmProjects/trace_unpublished/rels-int/")
-    embargos.build_mods()
-    test = FileSet("test_mods", embargos.embargoed_files)
+    test = FileSet(settings["path"])
     test.process_records()
+    # embargos = EmbargoedFiles("/home/mark/PycharmProjects/trace_unpublished/rels-int/", "datastream")
+    # embargos.build_mods()
+    # test = FileSet("test_mods", embargos.embargoed_files)
+    # print(test.embargos)
+    # test.process_records()
