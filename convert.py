@@ -27,7 +27,7 @@ class FileSet:
             return [file for file in i[2] if file.endswith(".xml")]
 
     def build_csv(self, metadata: list):
-        headings = ["title", "fulltext_url", "keywords", "abstract", "author1_fname", "author1_mname", "author1_lname",
+        headings = ["title", "trace_deposit", "fulltext_url", "keywords", "abstract", "author1_fname", "author1_mname", "author1_lname",
                     "author1_suffix", "author1_email", "author1_institution", "author1_orcid", "advisor1", "advisor2",
                     "disciplines", "comments", "degree_name", "document_type", "publication_date", "embargo_until",
                     "files_embargoed"]
@@ -35,7 +35,7 @@ class FileSet:
             dict_writer = csv.writer(theses_csv, delimiter="|")
             dict_writer.writerow(headings)
             for record in metadata:
-                if record[16] == "thesis" and record[17] == self.date_of_award:
+                if record[17] == "thesis" and record[18] == self.date_of_award:
                     if self.embargos is not None:
                         record = self.find_relevant_embargo(record)
                     dict_writer.writerow(record)
@@ -43,13 +43,38 @@ class FileSet:
             dict_writer = csv.writer(dissertations_csv, delimiter="|")
             dict_writer.writerow(headings)
             for record in metadata:
-                if record[16] == "dissertation" and record[17] == self.date_of_award:
+                if record[17] == "dissertation" and record[18] == self.date_of_award:
                     if self.embargos is not None:
                         record = self.find_relevant_embargo(record)
                     dict_writer.writerow(record)
 
     def process_records(self):
-        return self.build_csv([Record(record, self.path).prep_csv() for record in self.files])
+        self.build_csv([Record(record, self.path).prep_csv() for record in self.files])
+        with open("theses.csv", "r", encoding="utf-8") as theses_csv:
+            theses_reader = csv.reader(theses_csv, delimiter='|')
+            for row in theses_reader:
+                if row[1].startswith("https:"):
+                    r = requests.get(row[1])
+                    if r.status_code == 200:
+                        with open(f"{settings['processing_directory']}/{row[1].split('/')[-3]}.pdf",
+                            'wb') as thesis:
+                            thesis.write(r.content)
+                            PdfManipulator(f"{settings['processing_directory']}/{row[1].split('/')[-3]}.pdf",
+                                settings['for_dlshare']).process_pdf()
+
+        with open("dissertations.csv", "r", encoding="utf-8") as theses_csv:
+            theses_reader = csv.reader(theses_csv, delimiter='|')
+            for row in theses_reader:
+                if row[1].startswith("https:"):
+                    r = requests.get(row[1])
+                    if r.status_code == 200:
+                        with open(f"{settings['processing_directory']}/{row[1].split('/')[-3]}.pdf",
+                            'wb') as thesis:
+                            thesis.write(r.content)
+                            PdfManipulator(f"{settings['processing_directory']}/{row[1].split('/')[-3]}.pdf",
+                                settings['for_dlshare']).process_pdf()
+        return
+
 
     def find_relevant_embargo(self, my_row: list):
         my_file = f'{my_row[1].replace("https://trace.utk.edu/islandora/object/", "").replace("/datastream/PDF", "")}' \
@@ -65,6 +90,7 @@ class FileSet:
 class Record:
     def __init__(self, our_record: str, our_path: str):
         self.metadata = self.read_metadata(our_record, our_path)
+        self.path_on_server = ""
         self.url_path = self.set_url_path(our_record)
 
     @staticmethod
@@ -73,17 +99,16 @@ class Record:
             x = my_file.read()
             return xmltodict.parse(x)
 
-    @staticmethod
-    def set_url_path(file: str) -> str:
+    def set_url_path(self, file: str) -> str:
         r = requests.get(f"https://trace.utk.edu/islandora/object/{file.replace('.xml', '/datastream/PDF').replace('_',':')}")
         if r.status_code == 200:
             print(f"Processing {file}.\n")
-            download_pdf = requests.get(f"https://trace.utk.edu/islandora/object/"
-                                        f"{file.replace('.xml', '/datastream/PDF').replace('_',':')}")
-            with open(f"{settings['processing_directory']}/{file.replace('.xml', '.pdf').replace('_', ':')}", 'wb') as other:
-                other.write(download_pdf.content)
-            PdfManipulator(f"{settings['processing_directory']}/{file.replace('.xml', '.pdf').replace('_', ':')}",
-                           settings['for_dlshare']).process_pdf()
+            self.path_on_server = f"{settings['path_on_dlshare']}/{file.replace('.xml', '.pdf').replace('_',':')}"
+            print(self.path_on_server)
+            # download_pdf = requests.get(f"https://trace.utk.edu/islandora/object/{file.replace('.xml', '/datastream/PDF').replace('_',':')}")
+            # with open(f"{settings['processing_directory']}/{file.replace('.xml', '.pdf').replace('_', ':')}", 'wb') as other:
+                # other.write(download_pdf.content)
+            #PdfManipulator(f"{settings['processing_directory']}/{file.replace('.xml', '.pdf').replace('_', ':')}", settings['for_dlshare']).process_pdf()
             return f"https://trace.utk.edu/islandora/object/{file.replace('.xml', '/datastream/PDF').replace('_',':')}"
         else:
             print(f"Failing on {file}.\n")
@@ -92,7 +117,7 @@ class Record:
 
     def prep_csv(self) -> list:
         our_author = self.find_author_by_role()
-        row = [self.find_title(), self.url_path, self.review_notes("Keywords Submitted by Author"),
+        row = [self.find_title(), self.url_path, self.path_on_server, self.review_notes("Keywords Submitted by Author"),
                self.find_abstract(), our_author["name"]["first"], our_author["name"]["middle"],
                our_author["name"]["last"], our_author["name"]["suffix"],
                Person(our_author["name"]["first"], our_author["name"]["last"]).check_utk_email(),
