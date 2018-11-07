@@ -9,6 +9,9 @@ from app.embargo_handler import EmbargoedFiles
 import requests
 import tqdm
 from app.pdf_handler import PdfManipulator
+from dataclasses import dataclass
+from datetime import datetime
+import maya
 
 
 class FileSet:
@@ -180,7 +183,7 @@ class Record:
                             x = self.split_name_parts(names["mods:namePart"]).rstrip()
                             matches.append(x)
                     except KeyError:
-                        print(f"Exception on find advisors: {self.url_path}")
+                        error_log.write_error(f"Exception on find advisors: {self.url_path}")
                         return f"{self.url_path} has bad metadata and can't find advisors.'"
         return matches
 
@@ -209,7 +212,7 @@ class Record:
                             author.update(name=self.handle_author_parts(names["mods:namePart"]))
                             author.update(orcid=self.find_orcid(names))
                     except KeyError:
-                        print(self.url_path)
+                        error_log.write_error(f"Exception on find author by role for {self.url_path}.")
         return author
 
     @staticmethod
@@ -268,8 +271,20 @@ class ProcessRequest:
             test.process_records()
 
 
+@dataclass()
+class ErrorLog:
+    filename: str
+
+    def write_error(self, message: str):
+        with open(self.filename, "a+") as our_error_log:
+            our_error_log.write(f"{maya.MayaDT.from_datetime(datetime.utcnow())}: {message}\n")
+        return
+
+
+settings = yaml.load(open("config/config.yml", "r"))
+error_log = ErrorLog(settings["error_log"])
+
 if __name__ == "__main__":
-    settings = yaml.load(open("config/config.yml", "r"))
     test = FileSet(settings["path"])
     test.process_records()
     # embargos = EmbargoedFiles("/home/mark/PycharmProjects/trace_unpublished/rels-int/", "datastream")
