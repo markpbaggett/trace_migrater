@@ -5,7 +5,7 @@ import json
 import yaml
 from app.email_handler import Person
 from typing import Dict, Any
-from app.embargo_handler import EmbargoedFiles
+from app.embargo_handler import EmbargoedFiles, EmbargoHandler
 import requests
 import tqdm
 from app.pdf_handler import PdfManipulator
@@ -59,6 +59,10 @@ class FileSet:
         self.download_and_cleanup_pdfs("theses.csv")
         print("\nDownloading PDFs for dissertations: \n")
         self.download_and_cleanup_pdfs("dissertations.csv")
+        print("\nDownloading embargoed theses.\n")
+        self.download_embargoed_files("theses.csv")
+        print("\nDownloading embargoed dissertations.\n")
+        self.download_embargoed_files("dissertations.csv")
         return
 
     @staticmethod
@@ -73,6 +77,16 @@ class FileSet:
                             etds.write(r.content)
                             PdfManipulator(f"{settings['processing_directory']}/{row[1].split('/')[-3]}.pdf",
                                            settings['for_dlshare']).process_pdf()
+        return
+
+    @staticmethod
+    def download_embargoed_files(filename):
+        with open(filename, "r", encoding="utf-8") as pdf_sheet:
+            lines = [line for line in pdf_sheet]
+            for row in tqdm.tqdm(csv.reader(lines, delimiter="|"), total=len(lines)):
+                if row[1].startswith("EMBARGOED OR DELETED: "):
+                    current_file = EmbargoHandler(filename)
+                    current_file.download_pdf()
         return
 
     def find_relevant_embargo(self, my_row: list):
@@ -105,6 +119,7 @@ class Record:
             self.path_on_server = f"{settings['path_on_dlshare']}/{file.replace('.xml', '.pdf').replace('_',':')}"
             return f"https://trace.utk.edu/islandora/object/{file.replace('.xml', '/datastream/PDF').replace('_',':')}"
         else:
+            self.path_on_server = f"{settings['path_on_dlshare']}/embargoed_files/{file.replace('.xml', '/datastream/PDF').replace('_',':')}"
             return f"EMBARGOED OR DELETED: https://trace.utk.edu/islandora/object/" \
                    f"{file.replace('.xml', '/datastream/PDF').replace('_',':')}"
 
@@ -133,10 +148,17 @@ class Record:
         row.append("")
         row.append(self.is_thesis_or_dissertation())
         row.append("")
-        row.append("")
         row.append(self.find_publication_date())
         row.append("")
+        row.insert(20, self.add_embargo_date(row[1], row[21]))
         return row
+
+    def add_embargo_date(self, field_to_check_on, publication_date):
+        if publication_date == settings['date_of_award'] and field_to_check_on.startswith("EMBARGOED OR DELETED: "):
+            x = EmbargoHandler(field_to_check_on.replace("EMBARGOED OR DELETED: ", ""))
+            return x.get_embargo_until()
+        else:
+            return ""
 
     def find_title(self) -> str:
         # print(self.metadata["mods:mods"]["mods:titleInfo"]["mods:title"])

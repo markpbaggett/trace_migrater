@@ -54,7 +54,6 @@ class EmbargoHandler:
         self.options = Options()
         self.options.add_argument("--headless")
         self.driver = Chrome(executable_path=os.path.abspath("/usr/bin/chromedriver"), options=self.options)
-        self.setup_handler()
 
     def setup_handler(self):
         self.driver.get("https://trace.utk.edu/user/login")
@@ -69,10 +68,10 @@ class EmbargoHandler:
         self.driver.get(self.identifier.replace("PDF", "RELS-INT"))
         r = self.driver.request("GET", self.identifier.replace("PDF", "RELS-INT"))
         data = json.loads(json.dumps(xmltodict.parse(r.content)))
-        print(data["rdf:RDF"]["rdf:Description"][0]['islandora-embargo:embargo-until']["#text"])
-        return
+        return data["rdf:RDF"]["rdf:Description"][0]['islandora-embargo:embargo-until']["#text"]
 
     def download_pdf(self):
+        self.setup_handler()
         self.driver.get(self.identifier)
         r = self.driver.request("GET", self.identifier)
         if r.status_code == 200:
