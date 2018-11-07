@@ -38,8 +38,6 @@ class FileSet:
                 if record[19] == "thesis" and record[22] == self.date_of_award:
                     if self.embargos is not None:
                         record = self.find_relevant_embargo(record)
-                    else:
-                        record.insert(20, "")
                     dict_writer.writerow(record)
         with open("dissertations.csv", "w") as dissertations_csv:
             dict_writer = csv.writer(dissertations_csv, delimiter="|")
@@ -52,16 +50,19 @@ class FileSet:
         return
 
     def process_records(self):
-        self.build_csv([Record(record, self.path).prep_csv() for record in self.files])
+        print("Reviewing files and building spreadsheets: \n")
+        self.build_csv([Record(record, self.path).prep_csv() for record in tqdm.tqdm(self.files)])
+        print("\nDownloading PDFs for theses: \n")
         self.download_and_cleanup_pdfs("theses.csv")
+        print("\nDownloading PDFs for dissertations: \n")
         self.download_and_cleanup_pdfs("dissertations.csv")
         return
 
     @staticmethod
     def download_and_cleanup_pdfs(filename):
         with open(filename, "r", encoding="utf-8") as pdf_sheet:
-            pdfs_to_process = csv.reader(pdf_sheet, delimiter="|")
-            for row in pdfs_to_process:
+            lines = [line for line in pdf_sheet]
+            for row in tqdm.tqdm(csv.reader(lines, delimiter="|"), total=len(lines)):
                 if row[1].startswith("https:"):
                     r = requests.get(row[1])
                     if r.status_code == 200:
@@ -76,7 +77,7 @@ class FileSet:
                   f'.xml'
         for i in self.embargos:
             if my_file == i["filename"]:
-                print(i)
+                # print(i)
                 my_row.pop(20)
                 my_row.insert(20, i["embargo-until"])
                 # my_row.append(i["datastreams"])
@@ -98,12 +99,9 @@ class Record:
     def set_url_path(self, file: str) -> str:
         r = requests.get(f"https://trace.utk.edu/islandora/object/{file.replace('.xml', '/datastream/PDF').replace('_',':')}")
         if r.status_code == 200:
-            print(f"Processing {file}.\n")
             self.path_on_server = f"{settings['path_on_dlshare']}/{file.replace('.xml', '.pdf').replace('_',':')}"
-            print(self.path_on_server)
             return f"https://trace.utk.edu/islandora/object/{file.replace('.xml', '/datastream/PDF').replace('_',':')}"
         else:
-            print(f"Failing on {file}.\n")
             return f"EMBARGOED OR DELETED: https://trace.utk.edu/islandora/object/" \
                    f"{file.replace('.xml', '/datastream/PDF').replace('_',':')}"
 
@@ -182,7 +180,7 @@ class Record:
                             x = self.split_name_parts(names["mods:namePart"]).rstrip()
                             matches.append(x)
                     except KeyError:
-                        print(self.url_path)
+                        print(f"Exception on find advisors: {self.url_path}")
                         return f"{self.url_path} has bad metadata and can't find advisors.'"
         return matches
 
