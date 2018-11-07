@@ -12,7 +12,10 @@ class PdfManipulator:
     def has_a_cover_page(self):
         if self.contents.getPage(1).extractText().startswith("Accepted for the Council:"):
             return True
+        elif self.contents.getPage(1).extractText().startswith("To the Graduate Council:"):
+            return True
         else:
+            print(self.contents.getPage(1).extractText())
             return False
 
     def delete_cover_pages(self):
@@ -45,7 +48,6 @@ class PdfManipulator:
 
 
 if __name__ == "__main__":
-    pdf_name = "PDF.pdf"
-    #x = PdfManipulator(f"/home/mark/PycharmProjects/islandora_to_digital_commons/test_files/{pdf_name}")
-    x = requests.get(("https://trace.utk.edu/islandora/object/utk.ir.td:733/datastream/PDF")).content
+    pdf_name = "test.pdf"
+    x = PdfManipulator(f"/home/mark/PycharmProjects/islandora_to_digital_commons/test_files/{pdf_name}")
     x.process_pdf()
