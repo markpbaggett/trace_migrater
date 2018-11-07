@@ -85,7 +85,8 @@ class FileSet:
             lines = [line for line in pdf_sheet]
             for row in tqdm.tqdm(csv.reader(lines, delimiter="|"), total=len(lines)):
                 if row[1].startswith("EMBARGOED OR DELETED: "):
-                    current_file = EmbargoHandler(filename)
+                    print(row[1])
+                    current_file = EmbargoHandler(row[1].replace("EMBARGOED OR DELETED: ", ""))
                     current_file.download_pdf()
         return
 
@@ -142,10 +143,10 @@ class Record:
             row.append("BAD DATA.  Check file!")
         row.append("")
         row.append(our_author["orcid"])
-        row.append(self.find_discipline())
+        row.append("")
         row.append(self.review_notes("Submitted Comment"))
         row.append(self.find_degree())
-        row.append("")
+        row.append(self.find_discipline())
         row.append(self.is_thesis_or_dissertation())
         row.append("")
         row.append(self.find_publication_date())
