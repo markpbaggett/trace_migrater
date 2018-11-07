@@ -27,26 +27,29 @@ class FileSet:
             return [file for file in i[2] if file.endswith(".xml")]
 
     def build_csv(self, metadata: list):
-        headings = ["title", "trace_deposit", "fulltext_url", "keywords", "abstract", "author1_fname", "author1_mname", "author1_lname",
-                    "author1_suffix", "author1_email", "author1_institution", "author1_orcid", "advisor1", "advisor2",
-                    "disciplines", "comments", "degree_name", "document_type", "publication_date", "embargo_until",
-                    "files_embargoed"]
+        headings = ["title", "DELETE_original_uri_from_utk", "fulltext_url", "keywords", "abstract", "author1_fname",
+                    "author1_mname", "author1_lname", "author1_suffix", "author1_email", "author1_institution",
+                    "advisor1", "advisor2", "advisor3", "author1_orcid", "disciplines", "comments", "degree_name",
+                    "department", "document_type", "embargo_date", "instruct", "publication_date", "season"]
         with open("theses.csv", "w", encoding="utf-8") as theses_csv:
             dict_writer = csv.writer(theses_csv, delimiter="|")
             dict_writer.writerow(headings)
             for record in metadata:
-                if record[17] == "thesis" and record[18] == self.date_of_award:
+                if record[19] == "thesis" and record[22] == self.date_of_award:
                     if self.embargos is not None:
                         record = self.find_relevant_embargo(record)
+                    else:
+                        record.insert(20, "")
                     dict_writer.writerow(record)
         with open("dissertations.csv", "w") as dissertations_csv:
             dict_writer = csv.writer(dissertations_csv, delimiter="|")
             dict_writer.writerow(headings)
             for record in metadata:
-                if record[17] == "dissertation" and record[18] == self.date_of_award:
+                if record[19] == "dissertation" and record[22] == self.date_of_award:
                     if self.embargos is not None:
                         record = self.find_relevant_embargo(record)
                     dict_writer.writerow(record)
+        return
 
     def process_records(self):
         self.build_csv([Record(record, self.path).prep_csv() for record in self.files])
@@ -74,8 +77,9 @@ class FileSet:
         for i in self.embargos:
             if my_file == i["filename"]:
                 print(i)
-                my_row.append(i["embargo-until"])
-                my_row.append(i["datastreams"])
+                my_row.pop(20)
+                my_row.insert(20, i["embargo-until"])
+                # my_row.append(i["datastreams"])
         return my_row
 
 
@@ -97,10 +101,6 @@ class Record:
             print(f"Processing {file}.\n")
             self.path_on_server = f"{settings['path_on_dlshare']}/{file.replace('.xml', '.pdf').replace('_',':')}"
             print(self.path_on_server)
-            # download_pdf = requests.get(f"https://trace.utk.edu/islandora/object/{file.replace('.xml', '/datastream/PDF').replace('_',':')}")
-            # with open(f"{settings['processing_directory']}/{file.replace('.xml', '.pdf').replace('_', ':')}", 'wb') as other:
-                # other.write(download_pdf.content)
-            #PdfManipulator(f"{settings['processing_directory']}/{file.replace('.xml', '.pdf').replace('_', ':')}", settings['for_dlshare']).process_pdf()
             return f"https://trace.utk.edu/islandora/object/{file.replace('.xml', '/datastream/PDF').replace('_',':')}"
         else:
             print(f"Failing on {file}.\n")
@@ -113,8 +113,7 @@ class Record:
                self.find_abstract(), our_author["name"]["first"], our_author["name"]["middle"],
                our_author["name"]["last"], our_author["name"]["suffix"],
                Person(our_author["name"]["first"], our_author["name"]["last"]).check_utk_email(),
-               self.find_author_institution(),
-               our_author["orcid"]]
+               self.find_author_institution()]
         thesis_advisor = self.find_advisors("Thesis advisor")
         if type(thesis_advisor) is list:
             row.append(", ".join(str(x) for x in thesis_advisor))
@@ -125,11 +124,17 @@ class Record:
             row.append(", ".join(str(x) for x in advisors))
         else:
             row.append("BAD DATA.  Check file!")
+        row.append("")
+        row.append(our_author["orcid"])
         row.append(self.find_discipline())
         row.append(self.review_notes("Submitted Comment"))
         row.append(self.find_degree())
+        row.append("")
         row.append(self.is_thesis_or_dissertation())
+        row.append("")
+        row.append("")
         row.append(self.find_publication_date())
+        row.append("")
         return row
 
     def find_title(self) -> str:
