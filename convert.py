@@ -50,31 +50,23 @@ class FileSet:
 
     def process_records(self):
         self.build_csv([Record(record, self.path).prep_csv() for record in self.files])
-        with open("theses.csv", "r", encoding="utf-8") as theses_csv:
-            theses_reader = csv.reader(theses_csv, delimiter='|')
-            for row in theses_reader:
-                if row[1].startswith("https:"):
-                    r = requests.get(row[1])
-                    if r.status_code == 200:
-                        with open(f"{settings['processing_directory']}/{row[1].split('/')[-3]}.pdf",
-                            'wb') as thesis:
-                            thesis.write(r.content)
-                            PdfManipulator(f"{settings['processing_directory']}/{row[1].split('/')[-3]}.pdf",
-                                settings['for_dlshare']).process_pdf()
-
-        with open("dissertations.csv", "r", encoding="utf-8") as theses_csv:
-            theses_reader = csv.reader(theses_csv, delimiter='|')
-            for row in theses_reader:
-                if row[1].startswith("https:"):
-                    r = requests.get(row[1])
-                    if r.status_code == 200:
-                        with open(f"{settings['processing_directory']}/{row[1].split('/')[-3]}.pdf",
-                            'wb') as thesis:
-                            thesis.write(r.content)
-                            PdfManipulator(f"{settings['processing_directory']}/{row[1].split('/')[-3]}.pdf",
-                                settings['for_dlshare']).process_pdf()
+        self.download_and_cleanup_pdfs("theses.csv")
+        self.download_and_cleanup_pdfs("dissertations.csv")
         return
 
+    @staticmethod
+    def download_and_cleanup_pdfs(filename):
+        with open(filename, "r", encoding="utf-8") as pdf_sheet:
+            pdfs_to_process = csv.reader(pdf_sheet, delimiter="|")
+            for row in pdfs_to_process:
+                if row[1].startswith("https:"):
+                    r = requests.get(row[1])
+                    if r.status_code == 200:
+                        with open(f"{settings['processing_directory']}/{row[1].split('/')[-3]}.pdf", 'wb') as etds:
+                            etds.write(r.content)
+                            PdfManipulator(f"{settings['processing_directory']}/{row[1].split('/')[-3]}.pdf",
+                                           settings['for_dlshare']).process_pdf()
+        return
 
     def find_relevant_embargo(self, my_row: list):
         my_file = f'{my_row[1].replace("https://trace.utk.edu/islandora/object/", "").replace("/datastream/PDF", "")}' \
