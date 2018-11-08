@@ -7,6 +7,10 @@ name = "pypi"
 xmltodict = "*"
 pyyaml = "*"
 selenium = "*"
+requests = "*"
+tqdm = "*"
+selenium-requests = "*"
+"pypdf2" = "*"
 
 [dev-packages]
 
