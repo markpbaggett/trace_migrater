@@ -85,7 +85,6 @@ class FileSet:
             lines = [line for line in pdf_sheet]
             for row in tqdm.tqdm(csv.reader(lines, delimiter="|"), total=len(lines)):
                 if row[1].startswith("EMBARGOED OR DELETED: "):
-                    print(row[1])
                     current_file = EmbargoHandler(row[1].replace("EMBARGOED OR DELETED: ", ""))
                     current_file.download_pdf()
         return
@@ -162,7 +161,6 @@ class Record:
             return ""
 
     def find_title(self) -> str:
-        # print(self.metadata["mods:mods"]["mods:titleInfo"]["mods:title"])
         return self.metadata["mods:mods"]["mods:titleInfo"]["mods:title"]
 
     def find_abstract(self) -> str:

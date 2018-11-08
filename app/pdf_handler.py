@@ -1,5 +1,4 @@
 from PyPDF2 import PdfFileWriter, PdfFileReader
-import requests
 
 
 class PdfManipulator:
@@ -15,7 +14,8 @@ class PdfManipulator:
         elif self.contents.getPage(1).extractText().startswith("To the Graduate Council:"):
             return True
         else:
-            print(self.contents.getPage(1).extractText())
+            print(f"No cover page: {self.contents.getPage(1).extractText()}\n "
+                  f"\n{self.contents.getPage(1).extractText()}")
             return False
 
     def delete_cover_pages(self):
@@ -48,6 +48,7 @@ class PdfManipulator:
 
 
 if __name__ == "__main__":
-    pdf_name = "test.pdf"
-    x = PdfManipulator(f"/home/mark/PycharmProjects/islandora_to_digital_commons/test_files/{pdf_name}")
+    pdf_name = "utk.ir.td:117.pdf"
+    x = PdfManipulator(f"/home/mark/PycharmProjects/islandora_to_digital_commons/for_dlshare/embargoed_files/"
+                       f"{pdf_name}")
     x.process_pdf()

@@ -5,8 +5,10 @@ import shutil
 from selenium.webdriver.chrome.options import Options
 from seleniumrequests import Chrome
 import yaml
+from app.pdf_handler import PdfManipulator
 
 settings = yaml.load(open("config/config.yml", "r"))
+
 
 class EmbargoedFiles:
     def __init__(self, my_path: str, my_type: str="datastream"):
@@ -78,6 +80,7 @@ class EmbargoHandler:
             with open(f"{settings['for_dlshare']}/embargoed_files/{self.identifier.replace('https://trace.utk.edu/islandora/object/', '').replace('/datastream/PDF', '')}.pdf",
                     "wb") as my_file:
                 my_file.write(r.content)
+            PdfManipulator(f"{settings['for_dlshare']}/embargoed_files/{self.identifier.replace('https://trace.utk.edu/islandora/object/', '').replace('/datastream/PDF', '')}.pdf", f"{settings['for_dlshare']}/embargoed_files").process_pdf()
         else:
             print(r.status_code)
             print(self.identifier)
