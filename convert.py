@@ -119,7 +119,7 @@ class Record:
             self.path_on_server = f"{settings['path_on_dlshare']}/{file.replace('.xml', '.pdf').replace('_',':')}"
             return f"https://trace.utk.edu/islandora/object/{file.replace('.xml', '/datastream/PDF').replace('_',':')}"
         else:
-            self.path_on_server = f"{settings['path_on_dlshare']}/embargoed_files/{file.replace('.xml', '/datastream/PDF').replace('_',':')}"
+            self.path_on_server = f"{settings['path_on_dlshare']}/embargoed_files/{file.replace('.xml', '.pdf').replace('_',':')}"
             return f"EMBARGOED OR DELETED: https://trace.utk.edu/islandora/object/" \
                    f"{file.replace('.xml', '/datastream/PDF').replace('_',':')}"
 
