@@ -11,6 +11,7 @@ import requests
 import tqdm
 from app.pdf_handler import PdfManipulator
 import arrow
+import shutil
 
 
 class FileSet:
@@ -27,6 +28,17 @@ class FileSet:
     def build_set(path: str) -> list:
         for i in os.walk(path):
             return [file for file in i[2] if file.endswith(".xml")]
+
+    @staticmethod
+    def cleanup_processing_directory():
+        for current_file in os.listdir(settings["processing_directory"]):
+            file_path = os.path.join(settings["processing_directory"], current_file)
+            try:
+                if os.path.isfile(file_path):
+                    os.unlink(file_path)
+            except Exception as e:
+                error_log.write_error(f"WARNING: Exception occured on cleanup_processing_directory for {file_path} "
+                                      f"as {e}.")
 
     def build_csv(self, metadata: list):
         headings = ["title", "DELETE_original_uri_from_utk", "fulltext_url", "keywords", "abstract", "author1_fname",
@@ -62,6 +74,9 @@ class FileSet:
         self.download_embargoed_files("theses.csv")
         print("\nDownloading embargoed dissertations.\n")
         self.download_embargoed_files("dissertations.csv")
+        print("\nCleaning up processing directory. \n")
+        self.cleanup_processing_directory()
+        print("\n Done.")
         return
 
     @staticmethod
