@@ -1,1 +1,8 @@
 path: "path/to/your/files"
+path_on_dlshare: "http://dlshare.lib.utk.edu/WHERE_YOUR_FILES_SHOULD_BE"
+processing_directroy: "temp_directory_to_store_files"
+for_dlshare: "base for storing processed PDFs for dlshare"
+error_log: "where_to_cat_errors.log"
+user_name: "username in trace deposit"
+password: "password for trace deposit"
+date_of_award: "date of award of etds you are processing"
