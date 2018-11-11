@@ -6,8 +6,7 @@ from selenium.webdriver.chrome.options import Options
 from seleniumrequests import Chrome
 import yaml
 from app.pdf_handler import PdfManipulator
-
-settings = yaml.load(open("config/config.yml", "r"))
+from app.error_handler import ErrorLog
 
 
 class EmbargoedFiles:
@@ -76,16 +75,23 @@ class EmbargoHandler:
         self.setup_handler()
         self.driver.get(self.identifier)
         r = self.driver.request("GET", self.identifier)
-        if r.status_code == 200:
-            with open(f"{settings['for_dlshare']}/embargoed_files/{self.identifier.replace('https://trace.utk.edu/islandora/object/', '').replace('/datastream/PDF', '')}.pdf",
-                    "wb") as my_file:
-                my_file.write(r.content)
-            PdfManipulator(f"{settings['for_dlshare']}/embargoed_files/{self.identifier.replace('https://trace.utk.edu/islandora/object/', '').replace('/datastream/PDF', '')}.pdf", f"{settings['for_dlshare']}/embargoed_files").process_pdf()
-        else:
-            print(r.status_code)
-            print(self.identifier)
-        return
+        try:
+            if r.status_code == 200:
+                with open(f"{settings['for_dlshare']}/embargoed_files/{self.identifier.replace('https://trace.utk.edu/islandora/object/', '').replace('/datastream/PDF', '')}.pdf",
+                        "wb") as my_file:
+                    my_file.write(r.content)
+                PdfManipulator(f"{settings['for_dlshare']}/embargoed_files/{self.identifier.replace('https://trace.utk.edu/islandora/object/', '').replace('/datastream/PDF', '')}.pdf", f"{settings['for_dlshare']}/embargoed_files").process_pdf()
+            else:
+                error_log.write_error(f"Downloading PDF with EmbargoHandler on {self.identifier} resulted in a "
+                                      f"{r.status_code} error.")
+            return
+        except RuntimeError:
+            error_log.write_error(f"RuntimeError: cannot join current thread on {self.identifier}.")
+            return
 
+
+settings = yaml.load(open("config/config.yml", "r"))
+error_log = ErrorLog(settings["error_log"])
 
 if __name__ == "__main__":
     # test = EmbargoedFiles("/home/mark/PycharmProjects/trace_unpublished/rels-int/")
