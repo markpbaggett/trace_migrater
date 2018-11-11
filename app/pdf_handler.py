@@ -1,5 +1,6 @@
 from PyPDF2 import PdfFileWriter, PdfFileReader
-
+import yaml
+from app.error_handler import ErrorLog
 
 class PdfManipulator:
     def __init__(self, filename, output_directory="output_pdfs"):
@@ -14,8 +15,7 @@ class PdfManipulator:
         elif self.contents.getPage(1).extractText().startswith("To the Graduate Council:"):
             return True
         else:
-            print(f"No cover page: {self.contents.getPage(1).extractText()}\n "
-                  f"\n{self.contents.getPage(1).extractText()}")
+            error_log.write_error(f"WARNING: {self.filename} has no cover page.")
             return False
 
     def delete_cover_pages(self):
@@ -33,10 +33,17 @@ class PdfManipulator:
         return
 
     def write_output_to_disk(self):
-        with open(f"{self.output_directory}/{self.filename.split('/')[-1]}", "wb") as my_pdf:
-            # print(f"Writing {self.filename.split('/', [-1])} to {self.output_directory}.\n")
-            self.output_pdf.write(my_pdf)
-        return
+        try:
+            with open(f"{self.output_directory}/{self.filename.split('/')[-1]}", "wb") as my_pdf:
+                self.output_pdf.write(my_pdf)
+
+            return
+        except RuntimeError:
+            error_log.write_error(f"RuntimeError: cannot join current thread on {self.filename}.")
+            return
+        except UnicodeEncodeError:
+            error_log.write_error(f"UnicodeEncodeError on {self.filename}.")
+            return
 
     def process_pdf(self):
         if self.has_a_cover_page() is True:
@@ -46,6 +53,9 @@ class PdfManipulator:
         self.write_output_to_disk()
         return
 
+
+settings = yaml.load(open("config/config.yml", "r"))
+error_log = ErrorLog(settings["error_log"])
 
 if __name__ == "__main__":
     pdf_name = "utk.ir.td:117.pdf"
