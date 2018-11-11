@@ -11,6 +11,7 @@ requests = "*"
 tqdm = "*"
 selenium-requests = "*"
 "pypdf2" = "*"
+arrow = "*"
 
 [dev-packages]
 

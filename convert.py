@@ -6,12 +6,11 @@ import yaml
 from app.email_handler import Person
 from typing import Dict, Any
 from app.embargo_handler import EmbargoedFiles, EmbargoHandler
+from app.error_handler import ErrorLog
 import requests
 import tqdm
 from app.pdf_handler import PdfManipulator
-from dataclasses import dataclass
-from datetime import datetime
-import maya
+import arrow
 
 
 class FileSet:
@@ -156,7 +155,7 @@ class Record:
     def add_embargo_date(self, field_to_check_on, publication_date):
         if publication_date == settings['date_of_award'] and field_to_check_on.startswith("EMBARGOED OR DELETED: "):
             x = EmbargoHandler(field_to_check_on.replace("EMBARGOED OR DELETED: ", ""))
-            return x.get_embargo_until()
+            return f'{arrow.get(x.get_embargo_until(), "YYYY-MM-DD")} 00:00'
         else:
             return ""
 
@@ -292,21 +291,11 @@ class ProcessRequest:
             test.process_records()
 
 
-@dataclass()
-class ErrorLog:
-    filename: str
-
-    def write_error(self, message: str):
-        with open(self.filename, "a+") as our_error_log:
-            our_error_log.write(f"{maya.MayaDT.from_datetime(datetime.utcnow())}: {message}\n")
-        return
-
-
 settings = yaml.load(open("config/config.yml", "r"))
 error_log = ErrorLog(settings["error_log"])
 
 if __name__ == "__main__":
-    test = FileSet(settings["path"])
+    test = FileSet(settings["path"], date_of_award="2018-08")
     test.process_records()
     # embargos = EmbargoedFiles("/home/mark/PycharmProjects/trace_unpublished/rels-int/", "datastream")
     # embargos.build_mods()
