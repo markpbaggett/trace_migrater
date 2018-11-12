@@ -1,6 +1,7 @@
 from PyPDF2 import PdfFileWriter, PdfFileReader
 import yaml
 from app.error_handler import ErrorLog
+import PyPDF2
 
 class PdfManipulator:
     def __init__(self, filename, output_directory="output_pdfs"):
@@ -36,7 +37,6 @@ class PdfManipulator:
         try:
             with open(f"{self.output_directory}/{self.filename.split('/')[-1]}", "wb") as my_pdf:
                 self.output_pdf.write(my_pdf)
-
             return
         except RuntimeError:
             error_log.write_error(f"RuntimeError: cannot join current thread on {self.filename}.")
@@ -44,6 +44,8 @@ class PdfManipulator:
         except UnicodeEncodeError:
             error_log.write_error(f"UnicodeEncodeError on {self.filename}.")
             return
+        except PyPDF2.utils.PdfReadError as e:
+            error_log.write_error(f"PdfReadError on {self.filename} as {e}.")
 
     def process_pdf(self):
         if self.has_a_cover_page() is True:
