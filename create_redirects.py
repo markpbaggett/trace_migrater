@@ -2,8 +2,10 @@ import csv
 from selenium.webdriver.chrome.options import Options
 from seleniumrequests import Chrome
 from selenium.webdriver.support.ui import Select
+from selenium.common.exceptions import NoSuchElementException
 import tqdm
 import os
+import time
 
 digital_commons_advance_search ="https://trace.tennessee.edu/do/search/advanced/?fq=virtual_ancestor_link:%22" \
                                 "https://trace.tennessee.edu%22"
@@ -14,7 +16,7 @@ class MigratedETD:
         self.islandora_path = islandora_path.replace("EMBARGOED OR DELETED: ", "")
         self.title = title
         self.options = Options()
-        #self.options.add_argument("--headless")
+        # self.options.add_argument("--headless")
         self.driver = Chrome(executable_path=os.path.abspath("/usr/bin/chromedriver"), options=self.options)
         self.check_digital_commons()
 
@@ -28,15 +30,19 @@ class MigratedETD:
         search_field = self.driver.find_element_by_class_name("term")
         search_field.send_keys(self.title)
         self.driver.find_element_by_id("do-search-advanced").click()
-        # get url of migrated etd
-        anchor = self.driver.find_element_by_link_text(self.title)
-        print(anchor)
-        return
+        time.sleep(3)
+        html_source = self.driver.page_source
+        try:
+            x = self.driver.find_element_by_xpath("//a[@class='pdf']").get_attribute("href")
+            return f"Redirect 301 {self.islandora_path} {x}\n"
+        except NoSuchElementException:
+            return f"Could not find {self.islandora_path}"
 
 
 class CSVReader:
     def __init__(self, path_to_csv):
         self.my_csv = path_to_csv
+        self.redirects = []
         self.process_csv()
 
     def process_csv(self):
@@ -44,8 +50,25 @@ class CSVReader:
             lines = [line for line in migrated_files_sheet]
             for row in tqdm.tqdm(csv.reader(lines, delimiter="|"), total=len(lines)):
                 if row[0] != "title":
-                    print(row[0])
                     etd_to_process = MigratedETD(row[0], row[1])
+                    self.redirects.append(etd_to_process)
+        print(self.redirects)
+        print(type(self.redirects))
+        RedirectWriter(self.redirects)
+        return
+
+
+class RedirectWriter:
+    def __init__(self, redirects: list):
+        self.redirect_file = "redirect.txt"
+        self.redirects = redirects
+        self.write_output()
+
+    def write_output(self):
+        with open(self.redirect_file, "w") as redirect_file:
+            for redirect in self.redirects:
+                redirect_file.write(redirect)
+        return
 
 
 if __name__ == "__main__":
