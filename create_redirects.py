@@ -18,7 +18,6 @@ class MigratedETD:
         self.options = Options()
         # self.options.add_argument("--headless")
         self.driver = Chrome(executable_path=os.path.abspath("/usr/bin/chromedriver"), options=self.options)
-        self.check_digital_commons()
 
     def check_digital_commons(self):
         # Go to Advanced Search
@@ -34,9 +33,11 @@ class MigratedETD:
         html_source = self.driver.page_source
         try:
             x = self.driver.find_element_by_xpath("//a[@class='pdf']").get_attribute("href")
+            self.driver.close()
             return f"Redirect 301 {self.islandora_path} {x}\n"
         except NoSuchElementException:
-            return f"Could not find {self.islandora_path}"
+            self.driver.close()
+            return f"Could not find {self.islandora_path}\n"
 
 
 class CSVReader:
@@ -50,11 +51,10 @@ class CSVReader:
             lines = [line for line in migrated_files_sheet]
             for row in tqdm.tqdm(csv.reader(lines, delimiter="|"), total=len(lines)):
                 if row[0] != "title":
-                    etd_to_process = MigratedETD(row[0], row[1])
+                    etd_to_process = MigratedETD(row[0], row[1]).check_digital_commons()
                     self.redirects.append(etd_to_process)
-        print(self.redirects)
-        print(type(self.redirects))
         RedirectWriter(self.redirects)
+        print("\nDone.")
         return
 
 
