@@ -16,7 +16,7 @@ class MigratedETD:
         self.islandora_path = islandora_path.replace("EMBARGOED OR DELETED: ", "")
         self.title = title
         self.options = Options()
-        # self.options.add_argument("--headless")
+        #self.options.add_argument("--headless")
         self.driver = Chrome(executable_path=os.path.abspath("/usr/bin/chromedriver"), options=self.options)
 
     def check_digital_commons(self):
@@ -34,7 +34,7 @@ class MigratedETD:
         try:
             x = self.driver.find_element_by_xpath("//a[@class='pdf']").get_attribute("href")
             self.driver.close()
-            return f"Redirect 301 {self.islandora_path} {x}\n"
+            return f"Redirect 301 {self.islandora_path.replace('https://trace.utk.edu/', '')} {x}\n"
         except NoSuchElementException:
             self.driver.close()
             return f"Could not find {self.islandora_path}\n"
@@ -72,4 +72,4 @@ class RedirectWriter:
 
 
 if __name__ == "__main__":
-    x = CSVReader("finals/dissertations.csv")
+    x = CSVReader("/home/mark/Documents/theses_nov7.csv")
