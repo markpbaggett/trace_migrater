@@ -32,9 +32,9 @@ class MigratedETD:
         time.sleep(3)
         html_source = self.driver.page_source
         try:
-            x = self.driver.find_element_by_xpath("//a[@class='pdf']").get_attribute("href")
+            x = self.driver.find_element_by_xpath("//span[@class='title']/a").get_attribute("href")
             self.driver.close()
-            return f"Redirect 301 {self.islandora_path.replace('https://trace.utk.edu/', '')} {x}\n"
+            return f"Redirect 301 {self.islandora_path.replace('https://trace.utk.edu', '')} {x}\n"
         except NoSuchElementException:
             self.driver.close()
             return f"Could not find {self.islandora_path}\n"
@@ -72,4 +72,4 @@ class RedirectWriter:
 
 
 if __name__ == "__main__":
-    x = CSVReader("/home/mark/Documents/theses_nov7.csv")
+    x = CSVReader("/home/mark/Downloads/theses_summer_2018.csv")
