@@ -13,5 +13,5 @@ class ErrorLog:
         return
 
 
-settings = yaml.load(open("config/config.yml", "r"))
+settings = yaml.safe_load(open("config/config.yml", "r"))
 error_log = ErrorLog(settings["error_log"])

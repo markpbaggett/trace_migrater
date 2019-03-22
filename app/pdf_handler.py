@@ -56,7 +56,7 @@ class PdfManipulator:
         return
 
 
-settings = yaml.load(open("config/config.yml", "r"))
+settings = yaml.safe_load(open("config/config.yml", "r"))
 error_log = ErrorLog(settings["error_log"])
 
 if __name__ == "__main__":

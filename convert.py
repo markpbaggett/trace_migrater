@@ -289,7 +289,7 @@ class ProcessRequest:
 
     def handle(self):
         if self.type == "not_embargoed":
-            settings = yaml.load(open("config/config.yml", "r"))
+            settings = yaml.safe_load(open("config/config.yml", "r"))
             test = FileSet(settings["path"])
             test.process_records()
         elif self.type == "datastream":
@@ -306,7 +306,7 @@ class ProcessRequest:
             test.process_records()
 
 
-settings = yaml.load(open("config/config.yml", "r"))
+settings = yaml.safe_load(open("config/config.yml", "r"))
 error_log = ErrorLog(settings["error_log"])
 
 if __name__ == "__main__":
