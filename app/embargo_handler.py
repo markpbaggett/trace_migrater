@@ -7,6 +7,7 @@ from seleniumrequests import Chrome
 import yaml
 from app.pdf_handler import PdfManipulator
 from app.error_handler import ErrorLog
+from xml.parsers.expat import ExpatError
 
 
 class EmbargoedFiles:
@@ -19,7 +20,7 @@ class EmbargoedFiles:
     @staticmethod
     def populate(path: str) -> list:
         for i in os.walk(path):
-            return [file for file in i[2] if file.endswith(".xml")]
+            return [file for file in i[2] if file.endswith(".rdf+xml")]
 
     def get_embargo_dates(self) -> list:
         files_with_dates = []
@@ -32,11 +33,15 @@ class EmbargoedFiles:
                         files_with_dates.append({"filename": file, "embargo-until": data["rdf:RDF"]["rdf:Description"]
                         [0]['islandora-embargo:embargo-until']["#text"], "datastreams": self.get_list_of_dsids(data["rdf:RDF"]["rdf:Description"],file.replace(".xml", ''))},)
                     except KeyError:
+                        print("key error")
+                        error_log.write_error(f"A key error occured while getting the date associated with islandora-embargo:embargo-until for {self.path}{file}.")
                         pass
                 else:
                     try:
                         files_with_dates.append({"filename": file, "embargo-until": data["rdf:RDF"]["rdf:Description"]["islandora-embargo:embargo-until"]["#text"], "datastreams": "all"})
                     except:
+                        print("An unexpected error occurred.")
+                        error_log.write_error(f"An unexpected error occurred while getting the embargo associated with {self.path}{file}.")
                         pass
         return files_with_dates
 
@@ -44,9 +49,11 @@ class EmbargoedFiles:
     def get_list_of_dsids(some_data: dict, a_filename: str) -> list:
         return [data['@rdf:about'].replace(f"info:fedora/{a_filename}/", '') for data in some_data]
 
-    def build_mods(self):
+    def build_mods(self, rels_int_files="rels201905/", path_to_mods="test_mods"):
         for file in self.embargoed_files:
-            shutil.copy(f"{self.path.replace('rels-ext/', 'mods/')}{file['filename']}", "test_mods_rels_ext")
+            print(f"{self.path.replace(rels_int_files, 'my_files/')}{file['filename'].replace('rdf+xml', 'xml')}")
+            shutil.copy(f"{self.path.replace(rels_int_files, 'my_files/')}{file['filename'].replace('rdf+xml', 'xml')}",
+                        path_to_mods)
 
 
 class EmbargoHandler:
@@ -67,9 +74,18 @@ class EmbargoHandler:
 
     def get_embargo_until(self):
         self.driver.get(self.identifier.replace("PDF", "RELS-INT"))
-        r = self.driver.request("GET", self.identifier.replace("PDF", "RELS-INT"))
-        data = json.loads(json.dumps(xmltodict.parse(r.content)))
-        return data["rdf:RDF"]["rdf:Description"][0]['islandora-embargo:embargo-until']["#text"]
+        try:
+            r = self.driver.request("GET", self.identifier.replace("PDF", "RELS-INT"))
+            data = json.loads(
+                json.dumps(
+                    xmltodict.parse(
+                        r.content)
+                )
+            )
+            return data["rdf:RDF"]["rdf:Description"][0]['islandora-embargo:embargo-until']["#text"]
+        except ExpatError:
+            error_log.write_error(f"ExpatError:  Could not get an embargo date for {self.identifier}.")
+            return "9999-01-01"
 
     def download_pdf(self):
         self.setup_handler()
