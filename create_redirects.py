@@ -81,7 +81,7 @@ class RedirectWriter:
                     {
                         'type': 'redirect',
                         'hash': uuid.uuid4(),
-                        'source': redirect[0],
+                        'source': redirect[0].replace('/datastream/PDF', ''),
                         'source_options': 'a:0:{}',
                         'redirect': redirect[1],
                         'redirect_options': 'a:1:{s:5:"https";b:1;}',
@@ -93,4 +93,4 @@ class RedirectWriter:
 
 
 if __name__ == "__main__":
-    x = CSVReader("/home/mark/PycharmProjects/trace_migrater/201905/test_theses.csv")
+    x = CSVReader("/home/mark/Documents/spring_2019/dissertations.csv")
