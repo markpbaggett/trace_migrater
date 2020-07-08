@@ -61,7 +61,7 @@ class EmbargoHandler:
         self.identifier = identifier
         self.options = Options()
         self.options.add_argument("--headless")
-        self.driver = Chrome(executable_path=os.path.abspath("/usr/bin/chromedriver"), options=self.options)
+        self.driver = Chrome(executable_path=os.path.abspath("/home/mark/bin/chromedriver"), options=self.options)
 
     def setup_handler(self):
         self.driver.get("https://trace.utk.edu/user/login")
@@ -82,7 +82,7 @@ class EmbargoHandler:
                         r.content)
                 )
             )
-            return data["rdf:RDF"]["rdf:Description"][0]['islandora-embargo:embargo-until']["#text"]
+            return data["rdf:RDF"]["rdf:Description"][0]['islandora-embargo:embargo-until']["#text"][0:10]
         except ExpatError:
             error_log.write_error(f"ExpatError:  Could not get an embargo date for {self.identifier}.")
             return "9999-01-01"
