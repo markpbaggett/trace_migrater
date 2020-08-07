@@ -12,6 +12,7 @@ import tqdm
 from app.pdf_handler import PdfManipulator
 import arrow
 import shutil
+from xml.parsers.expat import ExpatError
 
 
 class FileSet:
@@ -37,7 +38,7 @@ class FileSet:
                 if os.path.isfile(file_path):
                     os.unlink(file_path)
             except Exception as e:
-                error_log.write_error(f"WARNING: Exception occured on cleanup_processing_directory for {file_path} "
+                error_log.write_error(f"WARNING: Exception occurred on cleanup_processing_directory for {file_path} "
                                       f"as {e}.")
 
     def build_csv(self, metadata: list):
@@ -66,16 +67,16 @@ class FileSet:
     def process_records(self):
         print("Reviewing files and building spreadsheets: \n")
         self.build_csv([Record(record, self.path).prep_csv() for record in tqdm.tqdm(self.files)])
-        print("\nDownloading PDFs for theses: \n")
-        self.download_and_cleanup_pdfs("theses.csv")
-        print("\nDownloading PDFs for dissertations: \n")
-        self.download_and_cleanup_pdfs("dissertations.csv")
-        print("\nDownloading embargoed theses.\n")
-        self.download_embargoed_files("theses.csv")
-        print("\nDownloading embargoed dissertations.\n")
-        self.download_embargoed_files("dissertations.csv")
-        print("\nCleaning up processing directory. \n")
-        self.cleanup_processing_directory()
+        # print("\nDownloading PDFs for theses: \n")
+        # self.download_and_cleanup_pdfs("theses.csv")
+        # print("\nDownloading PDFs for dissertations: \n")
+        # self.download_and_cleanup_pdfs("dissertations.csv")
+        # print("\nDownloading embargoed theses.\n")
+        # self.download_embargoed_files("theses.csv")
+        # print("\nDownloading embargoed dissertations.\n")
+        # self.download_embargoed_files("dissertations.csv")
+        # print("\nCleaning up processing directory. \n")
+        # self.cleanup_processing_directory()
         print("\n Done.")
         return
 
@@ -124,8 +125,12 @@ class Record:
     @staticmethod
     def read_metadata(record: str, path: str) -> Dict[str, Any]:
         with open(f"{path}/{record}", 'r', encoding="utf-8") as my_file:
-            x = my_file.read()
-            return xmltodict.parse(x)
+            try:
+                x = my_file.read()
+                return xmltodict.parse(x)
+            except ExpatError as e:
+                print(f"{path}/{record} failed with {e}.")
+                return {"bad_record": path}
 
     def set_url_path(self, file: str) -> str:
         r = requests.get(f"https://trace.utk.edu/islandora/object/{file.replace('.xml', '/datastream/PDF').replace('_',':')}")
@@ -138,34 +143,59 @@ class Record:
                    f"{file.replace('.xml', '/datastream/PDF').replace('_',':')}"
 
     def prep_csv(self) -> list:
-        our_author = self.find_author_by_role()
-        row = [self.find_title(), self.url_path, self.path_on_server, self.review_notes("Keywords Submitted by Author"),
-               self.find_abstract(), our_author["name"]["first"], our_author["name"]["middle"],
-               our_author["name"]["last"], our_author["name"]["suffix"],
-               Person(our_author["name"]["first"], our_author["name"]["last"]).check_utk_email(),
-               self.find_author_institution()]
-        thesis_advisor = self.find_advisors("Thesis advisor")
-        if type(thesis_advisor) is list:
-            row.append(", ".join(str(x) for x in thesis_advisor))
+        if 'bad_record' in self.metadata:
+            return [self.metadata["bad_record"],
+                    'bad_record',
+                    'bad_record',
+                    'bad_record',
+                    'bad_record',
+                    'bad_record',
+                    'bad_record',
+                    'bad_record',
+                    'bad_record',
+                    'bad_record',
+                    'bad_record',
+                    'bad_record',
+                    'bad_record',
+                    'bad_record',
+                    'bad_record',
+                    'bad_record',
+                    'bad_record',
+                    'bad_record',
+                    'bad_record',
+                    'bad_record',
+                    'bad_record',
+                    'bad_record',
+                    'bad_record']
         else:
-            row.append("BAD DATA.  Check file!")
-        advisors = self.find_advisors("Committee member")
-        if type(advisors) is list:
-            row.append(", ".join(str(x) for x in advisors))
-        else:
-            row.append("BAD DATA.  Check file!")
-        row.append("")
-        row.append(our_author["orcid"])
-        row.append("")
-        row.append(self.review_notes("Submitted Comment"))
-        row.append(self.find_degree())
-        row.append(self.find_discipline())
-        row.append(self.is_thesis_or_dissertation())
-        row.append("")
-        row.append(self.find_publication_date())
-        row.append("")
-        row.insert(20, self.add_embargo_date(row[1], row[21]))
-        return row
+            our_author = self.find_author_by_role()
+            row = [self.find_title(), self.url_path, self.path_on_server, self.review_notes("Keywords Submitted by Author"),
+                   self.find_abstract(), our_author["name"]["first"], our_author["name"]["middle"],
+                   our_author["name"]["last"], our_author["name"]["suffix"],
+                   Person(our_author["name"]["first"], our_author["name"]["last"]).check_utk_email(),
+                   self.find_author_institution()]
+            thesis_advisor = self.find_advisors("Thesis advisor")
+            if type(thesis_advisor) is list:
+                row.append(", ".join(str(x) for x in thesis_advisor))
+            else:
+                row.append("BAD DATA.  Check file!")
+            advisors = self.find_advisors("Committee member")
+            if type(advisors) is list:
+                row.append(", ".join(str(x) for x in advisors))
+            else:
+                row.append("BAD DATA.  Check file!")
+            row.append("")
+            row.append(our_author["orcid"])
+            row.append("")
+            row.append(self.review_notes("Submitted Comment"))
+            row.append(self.find_degree())
+            row.append(self.find_discipline())
+            row.append(self.is_thesis_or_dissertation())
+            row.append("")
+            row.append(self.find_publication_date())
+            row.append("")
+            row.insert(20, self.add_embargo_date(row[1], row[21]))
+            return row
 
     def add_embargo_date(self, field_to_check_on, publication_date):
         if publication_date == settings['date_of_award'] and field_to_check_on.startswith("EMBARGOED OR DELETED: "):
@@ -310,7 +340,7 @@ settings = yaml.safe_load(open("config/config.yml", "r"))
 error_log = ErrorLog(settings["error_log"])
 
 if __name__ == "__main__":
-    test = FileSet(settings["path"], date_of_award="2018-08")
+    test = FileSet(settings["path"], date_of_award="2019-08")
     test.process_records()
     # embargos = EmbargoedFiles("/home/mark/PycharmProjects/trace_unpublished/rels-int/", "datastream")
     # embargos.build_mods()
