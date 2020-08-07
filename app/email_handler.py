@@ -5,7 +5,7 @@ import os
 
 chrome_options = Options()
 chrome_options.add_argument("--headless")
-driver = webdriver.Chrome(executable_path=os.path.abspath("/usr/bin/chromedriver"), chrome_options=chrome_options)
+driver = webdriver.Chrome(executable_path=os.path.abspath("/home/mark/bin/chromedriver"), chrome_options=chrome_options)
 
 
 class Person:
